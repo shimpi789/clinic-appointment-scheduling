@@ -7,6 +7,8 @@ import slotRoutes from "./routes/slotRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import visitNoteRoutes from "./routes/visitNoteRoutes.js";
 import historyRoutes from "./routes/historyRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
+import alertRoutes from "./routes/alertRoutes.js";
 
 dotenv.config();
 
@@ -19,6 +21,7 @@ app.use("/api/slots", slotRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/visit-notes", visitNoteRoutes);
 app.use("/api/history", historyRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.get("/", (req, res) => {
     res.json({
