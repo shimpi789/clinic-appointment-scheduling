@@ -2,6 +2,11 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import slotRoutes from "./routes/slotRoutes.js";
+import appointmentRoutes from "./routes/appointmentRoutes.js";
+import visitNoteRoutes from "./routes/visitNoteRoutes.js";
+import historyRoutes from "./routes/historyRoutes.js";
 
 dotenv.config();
 
@@ -9,6 +14,11 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use("/api/auth", authRoutes);
+app.use("/api/slots", slotRoutes);
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/visit-notes", visitNoteRoutes);
+app.use("/api/history", historyRoutes);
 
 app.get("/", (req, res) => {
     res.json({
