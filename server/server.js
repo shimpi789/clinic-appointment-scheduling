@@ -22,6 +22,7 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/visit-notes", visitNoteRoutes);
 app.use("/api/history", historyRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/alerts", alertRoutes);
 
 app.get("/", (req, res) => {
     res.json({
