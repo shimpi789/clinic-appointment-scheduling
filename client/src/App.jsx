@@ -3,6 +3,7 @@ import { useAuth } from "./context/useAuth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Appointments from "./pages/Appointments";
+import Availability from "./pages/Availability";
 import "./App.css";
 
 const App = () => {
@@ -37,6 +38,17 @@ const App = () => {
     element={
         isAuthenticated ? (
             <Appointments />
+        ) : (
+            <Navigate to="/login" replace />
+        )
+    }
+/>
+
+<Route
+    path="/availability"
+    element={
+        isAuthenticated ? (
+            <Availability />
         ) : (
             <Navigate to="/login" replace />
         )

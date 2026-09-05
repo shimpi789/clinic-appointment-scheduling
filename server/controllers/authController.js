@@ -107,3 +107,22 @@ export const login = async (req, res) => {
         });
     }
 };
+
+export const getProviders = async (req, res) => {
+    try {
+        const providers = await User.find(
+            { role: "PROVIDER" },
+            { name: 1, email: 1 }
+        ).sort({ name: 1 });
+
+        return res.status(200).json({
+            providers,
+        });
+    } catch (error) {
+        console.error("Get providers error:", error.message);
+
+        return res.status(500).json({
+            message: "Server error while fetching providers",
+        });
+    }
+};

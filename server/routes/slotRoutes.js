@@ -5,6 +5,7 @@ import roleMiddleware from "../middleware/roleMiddleware.js";
 
 import {
     createSlot,
+    getSlots,
     getMySlots,
     updateSlot,
     archiveSlot,
@@ -12,7 +13,6 @@ import {
     bulkCreateSlots,
     exportDayScheduleCsv,
 } from "../controllers/slotController.js";
-
 const router = express.Router();
 
 // Create single slot
@@ -21,6 +21,14 @@ router.post(
     authMiddleware,
     roleMiddleware("FRONT_DESK", "PROVIDER"),
     createSlot
+);
+
+// Get slots based on user role
+router.get(
+    "/",
+    authMiddleware,
+    roleMiddleware("FRONT_DESK", "PROVIDER"),
+    getSlots
 );
 
 // Get provider's own active slots
