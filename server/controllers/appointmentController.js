@@ -607,18 +607,18 @@ export const reassignSchedulingProvider = async (req, res) => {
             });
         }
 
-        // Terminal appointments cannot be reassigned.
-        if (
-            appointment.status === "COMPLETED" ||
-            appointment.status === "NO_SHOW" ||
-            appointment.status === "CANCELLED"
-        ) {
-            return res.status(400).json({
-                message:
-                    "Scheduling provider cannot be reassigned for a completed, no-show, or cancelled appointment",
-            });
-        }
-
+     // Checked-in and terminal appointments cannot be reassigned.
+if (
+    appointment.status === "CHECKED_IN" ||
+    appointment.status === "COMPLETED" ||
+    appointment.status === "NO_SHOW" ||
+    appointment.status === "CANCELLED"
+) {
+    return res.status(400).json({
+        message:
+            "Scheduling provider cannot be reassigned after check-in or completion",
+    });
+}
         const provider = await User.findOne({
             _id: providerId,
             role: "PROVIDER",
