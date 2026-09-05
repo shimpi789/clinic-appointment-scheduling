@@ -6,7 +6,6 @@ export const getAlerts = async (req, res) => {
     try {
         const now = new Date();
 
-        // Appointment window:
         // Requested appointments within the next 24 hours
         const twentyFourHoursLater = new Date(
             now.getTime() + 24 * 60 * 60 * 1000
@@ -65,8 +64,7 @@ export const getAlerts = async (req, res) => {
                 return true;
             }
 
-            // If appointment is within 1 hour of scheduled time,
-            // show the alert again even if it was dismissed earlier.
+            // Reappear during the final 1 hour before the appointment
             const oneHourBefore = new Date(
                 appointment.scheduledAt.getTime() - 60 * 60 * 1000
             );
@@ -99,6 +97,13 @@ export const getAlerts = async (req, res) => {
 // Dismiss an alert
 export const dismissAlert = async (req, res) => {
     try {
+        // Only Front Desk can dismiss alerts
+        if (req.user.role !== "FRONT_DESK") {
+            return res.status(403).json({
+                message: "Only front desk can dismiss alerts",
+            });
+        }
+
         const { appointmentId } = req.params;
 
         const appointment = await Appointment.findById(appointmentId);
@@ -113,23 +118,6 @@ export const dismissAlert = async (req, res) => {
             return res.status(400).json({
                 message: "Only requested appointments can be dismissed",
             });
-        }
-
-        // Provider can only dismiss alerts for their own care-team appointments
-        if (req.user.role === "PROVIDER") {
-            const isCareTeamMember =
-                appointment.schedulingProviderId.toString() ===
-                    req.user.userId ||
-                appointment.supportingProviderIds.some(
-                    (providerId) =>
-                        providerId.toString() === req.user.userId
-                );
-
-            if (!isCareTeamMember) {
-                return res.status(403).json({
-                    message: "You can only dismiss alerts for your own appointments",
-                });
-            }
         }
 
         // Prevent duplicate dismissal records
