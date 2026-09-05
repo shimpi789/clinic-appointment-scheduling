@@ -1,45 +1,151 @@
 .appointments-page {
-    min-height: 100vh;
     width: 100%;
-    padding: 32px;
-    background: #f8fafc;
-    color: #111827;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px 48px;
 }
 
 .page-header {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto 24px;
+    margin-bottom: 28px;
 }
 
 .page-header h2 {
-    margin: 0 0 6px;
-    font-size: 26px;
-    font-weight: 700;
+    margin: 0;
+    font-size: 36px;
     color: #111827;
 }
 
 .page-header p {
-    margin: 0;
-    font-size: 14px;
+    margin: 8px 0 0;
     color: #6b7280;
+    font-size: 17px;
+}
+
+/* Cards */
+
+.appointment-create-card,
+.filters-card,
+.appointments-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+}
+
+.appointment-create-card {
+    margin-bottom: 24px;
+}
+
+.filters-card {
+    margin-bottom: 24px;
+}
+
+.card-header {
+    padding: 24px 28px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.card-header h3 {
+    margin: 0;
+    font-size: 22px;
+    color: #111827;
+}
+
+.card-header span {
+    display: block;
+    margin-top: 6px;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+/* Create Appointment */
+
+.appointment-create-form {
+    padding: 28px;
+}
+
+.appointment-create-grid {
+    display: grid;
+    grid-template-columns:
+        minmax(200px, 1.2fr)
+        minmax(200px, 1fr)
+        minmax(180px, 1fr)
+        minmax(220px, 1.1fr)
+        auto;
+    gap: 20px;
+    align-items: end;
+}
+
+.filter-group {
+    min-width: 0;
+}
+
+.filter-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.filter-group input,
+.filter-group select {
+    width: 100%;
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #111827;
+    outline: none;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.filter-group select:disabled {
+    background: #f3f4f6;
+    cursor: not-allowed;
+}
+
+.create-appointment-action {
+    min-width: max-content;
+}
+
+.primary-button,
+.filter-actions button,
+.appointment-actions button,
+.pagination button {
+    height: 40px;
+    padding: 0 15px;
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+    background: #ffffff;
+    color: #374151;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.primary-button {
+    height: 44px;
+    border-color: #2563eb;
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.primary-button:hover {
+    background: #1d4ed8;
 }
 
 /* Filters */
 
-.filters-card,
-.appointments-card {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto 20px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-}
-
-.filters-card {
-    padding: 20px;
+.filters-card form {
+    padding: 24px 28px;
 }
 
 .filter-row {
@@ -47,100 +153,49 @@
     grid-template-columns:
         minmax(220px, 1.5fr)
         minmax(160px, 1fr)
-        minmax(150px, 1fr)
-        minmax(150px, 1fr)
+        minmax(160px, 1fr)
+        minmax(160px, 1fr)
         auto;
-    gap: 14px;
+    gap: 18px;
     align-items: end;
-}
-
-.filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-}
-
-.filter-group label {
-    font-size: 12px;
-    font-weight: 600;
-    color: #374151;
-}
-
-.filter-group input,
-.filter-group select {
-    width: 100%;
-    min-height: 38px;
-    padding: 8px 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 7px;
-    background: #ffffff;
-    color: #111827;
-    font-size: 13px;
-    outline: none;
-}
-
-.filter-group input:focus,
-.filter-group select:focus {
-    border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 
 .filter-actions {
     display: flex;
     gap: 8px;
-    flex-shrink: 0;
-}
-
-.filter-actions button,
-.pagination button {
-    min-height: 38px;
-    padding: 8px 14px;
-    border: none;
-    border-radius: 7px;
-    background: #2563eb;
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
+    min-width: max-content;
 }
 
 .filter-actions button:hover,
-.pagination button:hover:not(:disabled) {
-    background: #1d4ed8;
+.appointment-actions button:hover,
+.pagination button:hover {
+    background: #f3f4f6;
 }
 
-.filter-actions .secondary-button {
+.secondary-button {
     background: #ffffff;
-    color: #374151;
-    border: 1px solid #d1d5db;
 }
 
-.filter-actions .secondary-button:hover {
-    background: #f9fafb;
+/* Messages */
+
+.error-message,
+.success-message {
+    margin-bottom: 24px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 14px;
 }
 
-/* Appointment Card */
-
-.appointments-card {
-    overflow: hidden;
+.error-message {
+    border: 1px solid #fecaca;
+    background: #fef2f2;
+    color: #b91c1c;
 }
 
-.card-header {
-    padding: 18px 20px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.card-header h3 {
-    margin: 0 0 4px;
-    font-size: 16px;
-    font-weight: 700;
-    color: #111827;
-}
-
-.card-header span {
-    font-size: 12px;
-    color: #6b7280;
+.success-message {
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
 }
 
 /* Table */
@@ -152,34 +207,36 @@
 
 .table-wrapper table {
     width: 100%;
+    min-width: 1050px;
     border-collapse: collapse;
 }
 
-.table-wrapper th {
-    padding: 12px 20px;
-    background: #f9fafb;
-    border-bottom: 1px solid #e5e7eb;
+.table-wrapper th,
+.table-wrapper td {
+    padding: 15px 18px;
     text-align: left;
-    font-size: 12px;
-    font-weight: 600;
-    color: #6b7280;
+    border-bottom: 1px solid #e5e7eb;
     white-space: nowrap;
 }
 
-.table-wrapper td {
-    padding: 14px 20px;
-    border-bottom: 1px solid #f1f5f9;
-    font-size: 13px;
+.table-wrapper th {
+    background: #f9fafb;
     color: #374151;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.table-wrapper td {
+    color: #374151;
+    font-size: 14px;
 }
 
 .table-wrapper tbody tr:hover {
     background: #f9fafb;
 }
 
-.table-wrapper td strong {
-    color: #111827;
-    font-weight: 600;
+.table-wrapper tbody tr:last-child td {
+    border-bottom: none;
 }
 
 /* Status */
@@ -187,35 +244,36 @@
 .status-badge {
     display: inline-flex;
     align-items: center;
-    padding: 4px 9px;
+    justify-content: center;
+    min-width: 88px;
+    padding: 5px 10px;
     border-radius: 999px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: capitalize;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .status-requested {
-    background: #fff7ed;
-    color: #c2410c;
+    background: #fef3c7;
+    color: #92400e;
 }
 
 .status-confirmed {
-    background: #eff6ff;
+    background: #dbeafe;
     color: #1d4ed8;
 }
 
 .status-checked_in {
-    background: #f0fdf4;
-    color: #15803d;
+    background: #e0e7ff;
+    color: #4338ca;
 }
 
 .status-completed {
-    background: #f0fdf4;
+    background: #dcfce7;
     color: #166534;
 }
 
 .status-no_show {
-    background: #fef2f2;
+    background: #fee2e2;
     color: #b91c1c;
 }
 
@@ -224,23 +282,37 @@
     color: #4b5563;
 }
 
-/* Messages */
+/* Appointment Actions */
 
-.state-message {
-    padding: 40px 20px;
-    text-align: center;
-    font-size: 14px;
-    color: #6b7280;
+.appointment-actions {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex-wrap: wrap;
+    min-width: 230px;
 }
 
-.error-message {
-    margin: 20px;
-    padding: 12px 14px;
-    border: 1px solid #fecaca;
-    border-radius: 7px;
-    background: #fef2f2;
+.appointment-actions button {
+    height: 34px;
+    padding: 0 11px;
+    font-size: 12px;
+}
+
+.appointment-actions .danger-button {
+    border-color: #fecaca;
     color: #b91c1c;
-    font-size: 13px;
+}
+
+.appointment-actions .danger-button:hover {
+    background: #fef2f2;
+}
+
+/* State */
+
+.state-message {
+    padding: 56px 24px;
+    text-align: center;
+    color: #6b7280;
 }
 
 /* Pagination */
@@ -248,27 +320,38 @@
 .pagination {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 14px 20px;
+    justify-content: center;
+    gap: 18px;
+    padding: 20px;
     border-top: 1px solid #e5e7eb;
 }
 
-.pagination span {
-    font-size: 13px;
-    color: #6b7280;
+.pagination button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
-.pagination button:disabled {
-    background: #e5e7eb;
-    color: #9ca3af;
-    cursor: not-allowed;
+.pagination span {
+    color: #4b5563;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 /* Responsive */
 
-@media (max-width: 1000px) {
+@media (max-width: 1200px) {
+    .appointment-create-grid {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .create-appointment-action {
+        grid-column: 1 / -1;
+    }
+
     .filter-row {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
     }
 
     .filter-actions {
@@ -276,24 +359,39 @@
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 700px) {
     .appointments-page {
-        padding: 20px 14px;
+        padding: 24px 16px 40px;
     }
 
+    .page-header h2 {
+        font-size: 30px;
+    }
+
+    .card-header {
+        padding: 20px;
+    }
+
+    .appointment-create-form,
+    .filters-card form {
+        padding: 20px;
+    }
+
+    .appointment-create-grid,
     .filter-row {
         grid-template-columns: 1fr;
     }
 
+    .create-appointment-action,
     .filter-actions {
         grid-column: auto;
     }
 
-    .filter-actions button {
-        flex: 1;
+    .filter-actions {
+        flex-wrap: wrap;
     }
 
-    .pagination {
-        gap: 10px;
+    .appointment-actions {
+        min-width: 190px;
     }
 }
