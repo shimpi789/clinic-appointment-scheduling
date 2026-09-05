@@ -169,22 +169,24 @@ export const getMySlots = async (req, res) => {
 };
 
 
-// Get slots based on role
 export const getSlots = async (req, res) => {
     try {
-        const { providerId, date } = req.query;
+        const { providerId, date, archived } = req.query;
 
-        let filter = {
-            archived: false,
-        };
+        let filter = {};
 
+        // By default, show active slots.
+        // If archived=true, show archived slots.
+        filter.archived = archived === "true";
+
+        // Provider can only see their own slots.
         if (req.user.role === "PROVIDER") {
-            // Provider can only see their own slots
             filter.providerId = req.user.userId;
         }
 
+        // Front desk can view slots for any provider,
+        // but providerId is required.
         if (req.user.role === "FRONT_DESK") {
-            // Front desk must specify which provider's slots to view
             if (!providerId) {
                 return res.status(400).json({
                     message: "Provider is required",
@@ -220,18 +222,13 @@ export const getSlots = async (req, res) => {
             slots,
         });
     } catch (error) {
-        console.error(
-            "Get slots error:",
-            error.message
-        );
+        console.error("Get slots error:", error.message);
 
         return res.status(500).json({
-            message:
-                "Server error while fetching slots",
+            message: "Server error while fetching slots",
         });
     }
 };
-
 // Update Slot
 export const updateSlot = async (req, res) => {
     try {

@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { createSlot, getSlots } from "../services/slotService";
+import {
+    createSlot,
+    getSlots,
+    updateSlot,
+    archiveSlot,
+    restoreSlot,
+} from "../services/slotService";
 import { getProviders } from "../services/authService";
 import { useAuth } from "../context/useAuth";
 import "../styles/availability.css";
@@ -9,9 +15,13 @@ const Availability = () => {
 
     const [slots, setSlots] = useState([]);
     const [providers, setProviders] = useState([]);
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+
+    const [showArchived, setShowArchived] = useState(false);
+    const [editingSlotId, setEditingSlotId] = useState(null);
 
     const [formData, setFormData] = useState({
         providerId: "",
@@ -36,9 +46,12 @@ const Availability = () => {
 
                 data = await getSlots({
                     providerId: formData.providerId,
+                    archived: showArchived,
                 });
             } else {
-                data = await getSlots();
+                data = await getSlots({
+                    archived: showArchived,
+                });
             }
 
             setSlots(data.slots || []);
@@ -47,7 +60,7 @@ const Availability = () => {
         } finally {
             setLoading(false);
         }
-    }, [user, formData.providerId]);
+    }, [user, formData.providerId, showArchived]);
 
     const loadProviders = useCallback(async () => {
         if (user?.role !== "FRONT_DESK") {
@@ -84,6 +97,19 @@ const Availability = () => {
         }));
     };
 
+    const resetForm = (preserveProvider = false) => {
+        setEditingSlotId(null);
+
+        setFormData((previous) => ({
+            providerId: preserveProvider
+                ? previous.providerId
+                : "",
+            date: "",
+            startTime: "",
+            duration: 30,
+        }));
+    };
+
     const handleSubmit = async (event) => {
         event.preventDefault();
 
@@ -92,25 +118,94 @@ const Availability = () => {
             setSuccess("");
 
             const data = {
-                providerId:
-                    user?.role === "FRONT_DESK"
-                        ? formData.providerId
-                        : user?.id,
                 date: formData.date,
                 startTime: formData.startTime,
                 duration: Number(formData.duration),
             };
 
-            await createSlot(data);
+            if (user?.role === "FRONT_DESK") {
+                data.providerId = formData.providerId;
+            } else {
+                data.providerId = user?.id;
+            }
 
-            setSuccess("Availability created successfully.");
+            if (editingSlotId) {
+                await updateSlot(editingSlotId, data);
 
-            setFormData({
-                providerId: "",
-                date: "",
-                startTime: "",
-                duration: 30,
-            });
+                setSuccess(
+                    "Availability updated successfully."
+                );
+
+                resetForm(
+                    user?.role === "FRONT_DESK"
+                );
+            } else {
+                await createSlot(data);
+
+                setSuccess(
+                    "Availability created successfully."
+                );
+
+                resetForm(
+                    user?.role === "FRONT_DESK"
+                );
+            }
+
+            await loadSlots();
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
+    const handleEdit = (slot) => {
+        setError("");
+        setSuccess("");
+
+        setEditingSlotId(slot._id);
+
+        setFormData({
+            providerId:
+                slot.providerId?._id ||
+                slot.providerId ||
+                "",
+            date: slot.date || "",
+            startTime: slot.startTime || "",
+            duration: slot.duration || 30,
+        });
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth",
+        });
+    };
+
+    const handleArchive = async (slotId) => {
+        try {
+            setError("");
+            setSuccess("");
+
+            await archiveSlot(slotId);
+
+            setSuccess(
+                "Availability archived successfully."
+            );
+
+            await loadSlots();
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
+    const handleRestore = async (slotId) => {
+        try {
+            setError("");
+            setSuccess("");
+
+            await restoreSlot(slotId);
+
+            setSuccess(
+                "Availability restored successfully."
+            );
 
             await loadSlots();
         } catch (error) {
@@ -119,16 +214,17 @@ const Availability = () => {
     };
 
     const formatDate = (date) => {
-        if (!date) return "-";
+        if (!date) {
+            return "-";
+        }
 
-        return new Date(`${date}T00:00:00`).toLocaleDateString(
-            "en-IN",
-            {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            }
-        );
+        return new Date(
+            `${date}T00:00:00`
+        ).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
     };
 
     return (
@@ -143,15 +239,23 @@ const Availability = () => {
                 </div>
             </div>
 
+            {/* Create / Edit Availability */}
+
             <div className="availability-form-card">
                 <div className="card-header">
-                    <h3>Create Availability</h3>
+                    <div>
+                        <h3>
+                            {editingSlotId
+                                ? "Edit Availability"
+                                : "Create Availability"}
+                        </h3>
 
-                    <span>
-                        {user?.role === "FRONT_DESK"
-                            ? "Create a slot for any provider."
-                            : "Create availability for your schedule."}
-                    </span>
+                        <span>
+                            {user?.role === "FRONT_DESK"
+                                ? "Create and manage slots for providers."
+                                : "Create and manage your schedule."}
+                        </span>
+                    </div>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -168,19 +272,29 @@ const Availability = () => {
                                     value={formData.providerId}
                                     onChange={handleChange}
                                     required
+                                    disabled={Boolean(
+                                        editingSlotId
+                                    )}
                                 >
                                     <option value="">
                                         Select a provider
                                     </option>
 
-                                    {providers.map((provider) => (
-                                        <option
-                                            key={provider._id}
-                                            value={provider._id}
-                                        >
-                                            {provider.name} ({provider.email})
-                                        </option>
-                                    ))}
+                                    {providers.map(
+                                        (provider) => (
+                                            <option
+                                                key={
+                                                    provider._id
+                                                }
+                                                value={
+                                                    provider._id
+                                                }
+                                            >
+                                                {provider.name} (
+                                                {provider.email})
+                                            </option>
+                                        )
+                                    )}
                                 </select>
                             </div>
                         )}
@@ -232,9 +346,29 @@ const Availability = () => {
                         </div>
 
                         <div className="availability-actions">
-                            <button type="submit">
-                                Create Slot
+                            <button
+                                type="submit"
+                                className="primary-button"
+                            >
+                                {editingSlotId
+                                    ? "Update Slot"
+                                    : "Create Slot"}
                             </button>
+
+                            {editingSlotId && (
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() =>
+                                        resetForm(
+                                            user?.role ===
+                                                "FRONT_DESK"
+                                        )
+                                    }
+                                >
+                                    Cancel Edit
+                                </button>
+                            )}
                         </div>
                     </div>
                 </form>
@@ -252,15 +386,35 @@ const Availability = () => {
                 )}
             </div>
 
+            {/* Availability List */}
+
             <div className="availability-list-card">
-                <div className="card-header">
+                <div className="card-header availability-list-header">
                     <div>
                         <h3>Availability Slots</h3>
 
                         <span>
-                            {slots.length} slots loaded
+                            {slots.length}{" "}
+                            {showArchived
+                                ? "archived"
+                                : "active"}{" "}
+                            slots loaded
                         </span>
                     </div>
+
+                    <label className="archived-toggle">
+                        <input
+                            type="checkbox"
+                            checked={showArchived}
+                            onChange={(event) =>
+                                setShowArchived(
+                                    event.target.checked
+                                )
+                            }
+                        />
+
+                        <span>Show Archived</span>
+                    </label>
                 </div>
 
                 {loading && (
@@ -269,13 +423,17 @@ const Availability = () => {
                     </div>
                 )}
 
-                {!loading && !error && slots.length === 0 && (
-                    <div className="availability-state">
-                        {user?.role === "FRONT_DESK"
-                            ? "Select a provider to view availability."
-                            : "No availability slots found."}
-                    </div>
-                )}
+                {!loading &&
+                    !error &&
+                    slots.length === 0 && (
+                        <div className="availability-state">
+                            {showArchived
+                                ? "No archived availability slots found."
+                                : user?.role === "FRONT_DESK"
+                                ? "Select a provider to view availability."
+                                : "No availability slots found."}
+                        </div>
+                    )}
 
                 {!loading && slots.length > 0 && (
                     <div className="availability-table-wrapper">
@@ -286,6 +444,7 @@ const Availability = () => {
                                     <th>Start Time</th>
                                     <th>Duration</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
 
@@ -293,7 +452,9 @@ const Availability = () => {
                                 {slots.map((slot) => (
                                     <tr key={slot._id}>
                                         <td>
-                                            {formatDate(slot.date)}
+                                            {formatDate(
+                                                slot.date
+                                            )}
                                         </td>
 
                                         <td>
@@ -316,6 +477,47 @@ const Availability = () => {
                                                     ? "Archived"
                                                     : "Active"}
                                             </span>
+                                        </td>
+
+                                        <td>
+                                            <div className="availability-row-actions">
+                                                {slot.archived ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleRestore(
+                                                                slot._id
+                                                            )
+                                                        }
+                                                    >
+                                                        Restore
+                                                    </button>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleEdit(
+                                                                    slot
+                                                                )
+                                                            }
+                                                        >
+                                                            Edit
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleArchive(
+                                                                    slot._id
+                                                                )
+                                                            }
+                                                        >
+                                                            Archive
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
