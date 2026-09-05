@@ -1,28 +1,4 @@
 #root {
+  width: 100%;
   min-height: 100vh;
-}
-
-.app {
-  min-height: 100vh;
-}
-
-.app-header {
-  padding: 24px 32px;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.app-header h1 {
-  margin: 0 0 8px;
-  font-size: 28px;
-}
-
-.app-header p {
-  margin: 0;
-  color: #6b7280;
-}
-
-.app-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 40px 32px;
 }
