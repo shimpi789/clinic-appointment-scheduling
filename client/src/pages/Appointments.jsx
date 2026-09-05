@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import {
     getAppointments,
-    createAppointment,
+    reassignSchedulingProvider,
+    getVisitNotes,
+    addVisitNote,
+    updateVisitNote,
     updateAppointmentStatus,
     cancelAppointment,
+    addSupportingProvider,
+    removeSupportingProvider,
 } from "../services/appointmentService";
-import {
-    getSlots,
-} from "../services/slotService";
 import { getProviders } from "../services/authService";
 import { useAuth } from "../context/useAuth";
 import "../styles/appointments.css";
@@ -17,23 +19,11 @@ const Appointments = () => {
 
     const [appointments, setAppointments] = useState([]);
     const [providers, setProviders] = useState([]);
-    const [slots, setSlots] = useState([]);
 
     const [loading, setLoading] = useState(true);
-    const [slotsLoading, setSlotsLoading] = useState(false);
-
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    // Create appointment form
-    const [patientName, setPatientName] = useState("");
-    const [selectedProvider, setSelectedProvider] =
-        useState("");
-    const [appointmentDate, setAppointmentDate] =
-        useState("");
-    const [selectedSlot, setSelectedSlot] = useState("");
-
-    // Filters
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState("");
     const [fromDate, setFromDate] = useState("");
@@ -46,10 +36,27 @@ const Appointments = () => {
         totalPages: 1,
     });
 
-    /*
-     * Load appointments.
-     * Pagination and filtering happen on the server.
-     */
+    const [editingProviderId, setEditingProviderId] = useState(null);
+    const [selectedProviderId, setSelectedProviderId] =
+        useState("");
+
+    const [selectedAppointment, setSelectedAppointment] =
+        useState(null);
+
+    const [notes, setNotes] = useState([]);
+    const [notesLoading, setNotesLoading] = useState(false);
+
+    const [noteText, setNoteText] = useState("");
+    const [editingNoteId, setEditingNoteId] = useState(null);
+    const [editingNoteText, setEditingNoteText] = useState("");
+
+    const [selectedSupportingProvider, setSelectedSupportingProvider] =
+        useState("");
+
+    const [cancelAppointmentId, setCancelAppointmentId] =
+        useState(null);
+    const [cancelReason, setCancelReason] = useState("");
+
     const fetchAppointments = useCallback(async () => {
         try {
             setLoading(true);
@@ -85,109 +92,81 @@ const Appointments = () => {
         fetchAppointments();
     }, [fetchAppointments]);
 
-    /*
-     * Load providers for Front Desk.
-     */
-    const fetchProviders = useCallback(async () => {
-        if (user?.role !== "FRONT_DESK") {
-            return;
-        }
-
-        try {
-            const data = await getProviders();
-
-            setProviders(data.providers || []);
-        } catch (error) {
-            setError(error.message);
-        }
-    }, [user]);
-
     useEffect(() => {
-        // Loading providers from the API is intentional here.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchProviders();
-    }, [fetchProviders]);
-
-    /*
-     * Load available slots whenever provider/date changes.
-     */
-    const fetchSlots = useCallback(async () => {
-        if (!appointmentDate) {
-            setSlots([]);
-            return;
-        }
-
-        if (
-            user?.role === "FRONT_DESK" &&
-            !selectedProvider
-        ) {
-            setSlots([]);
-            return;
-        }
-
-        try {
-            setSlotsLoading(true);
-            setError("");
-
-            const params = {
-                date: appointmentDate,
-            };
-
-            if (user?.role === "FRONT_DESK") {
-                params.providerId = selectedProvider;
+        const fetchProviders = async () => {
+            if (user?.role !== "FRONT_DESK") {
+                return;
             }
 
-            const data = await getSlots(params);
+            try {
+                const data = await getProviders();
+                setProviders(data.providers || []);
+            } catch (error) {
+                setError(error.message);
+            }
+        };
 
-            setSlots(data.slots || []);
-        } catch (error) {
-            setError(error.message);
-        } finally {
-            setSlotsLoading(false);
-        }
-    }, [user, selectedProvider, appointmentDate]);
+        fetchProviders();
+    }, [user]);
 
-    useEffect(() => {
-        // Loading available slots from the API is intentional here.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        fetchSlots();
-    }, [fetchSlots]);
-
-    const handleCreateAppointment = async (event) => {
+    const handleSearch = (event) => {
         event.preventDefault();
+        setPage(1);
+    };
+
+    const handleClearFilters = () => {
+        setSearch("");
+        setStatus("");
+        setFromDate("");
+        setToDate("");
+        setPage(1);
+    };
+
+    const handleStartReassign = (appointment) => {
+        setError("");
+        setSuccess("");
+
+        setEditingProviderId(appointment._id);
+
+        setSelectedProviderId(
+            appointment.schedulingProviderId?._id || ""
+        );
+    };
+
+    const handleCancelReassign = () => {
+        setEditingProviderId(null);
+        setSelectedProviderId("");
+    };
+
+    const handleReassign = async (appointmentId) => {
+        if (!selectedProviderId) {
+            setError("Please select a provider.");
+            return;
+        }
 
         try {
             setError("");
             setSuccess("");
 
-            if (!selectedSlot) {
-                setError("Please select an available slot.");
-                return;
-            }
-
-            await createAppointment({
-                slotId: selectedSlot,
-                patientName: patientName.trim(),
-            });
-
-            setSuccess(
-                "Appointment requested successfully."
+            await reassignSchedulingProvider(
+                appointmentId,
+                selectedProviderId
             );
 
-            setPatientName("");
-            setSelectedSlot("");
+            setSuccess(
+                "Scheduling provider reassigned successfully."
+            );
+
+            setEditingProviderId(null);
+            setSelectedProviderId("");
 
             await fetchAppointments();
-            await fetchSlots();
         } catch (error) {
             setError(error.message);
         }
     };
 
-    const handleStatusChange = async (
-        appointmentId,
-        nextStatus
-    ) => {
+    const handleStatusChange = async (appointmentId, nextStatus) => {
         try {
             setError("");
             setSuccess("");
@@ -204,17 +183,40 @@ const Appointments = () => {
             );
 
             await fetchAppointments();
+
+            if (selectedAppointment?._id === appointmentId) {
+                const updatedAppointment = appointments.find(
+                    (appointment) =>
+                        appointment._id === appointmentId
+                );
+
+                if (updatedAppointment) {
+                    setSelectedAppointment({
+                        ...updatedAppointment,
+                        status: nextStatus,
+                    });
+                }
+            }
         } catch (error) {
             setError(error.message);
         }
     };
 
-    const handleCancel = async (appointmentId) => {
-        const reason = window.prompt(
-            "Enter cancellation reason:"
-        );
+    const handleOpenCancel = (appointmentId) => {
+        setError("");
+        setSuccess("");
+        setCancelAppointmentId(appointmentId);
+        setCancelReason("");
+    };
 
-        if (!reason || !reason.trim()) {
+    const handleCloseCancel = () => {
+        setCancelAppointmentId(null);
+        setCancelReason("");
+    };
+
+    const handleCancelAppointment = async () => {
+        if (!cancelReason.trim()) {
+            setError("Cancellation reason is required.");
             return;
         }
 
@@ -223,13 +225,15 @@ const Appointments = () => {
             setSuccess("");
 
             await cancelAppointment(
-                appointmentId,
-                reason.trim()
+                cancelAppointmentId,
+                cancelReason.trim()
             );
 
             setSuccess(
                 "Appointment cancelled successfully."
             );
+
+            handleCloseCancel();
 
             await fetchAppointments();
         } catch (error) {
@@ -237,44 +241,220 @@ const Appointments = () => {
         }
     };
 
-    const handleClearFilters = () => {
-        setSearch("");
-        setStatus("");
-        setFromDate("");
-        setToDate("");
-        setPage(1);
+    const handleAddSupportingProvider = async () => {
+        if (!selectedSupportingProvider) {
+            setError("Please select a supporting provider.");
+            return;
+        }
+
+        try {
+            setError("");
+            setSuccess("");
+
+            await addSupportingProvider(
+                selectedAppointment._id,
+                selectedSupportingProvider
+            );
+
+            setSuccess(
+                "Supporting provider added successfully."
+            );
+
+            setSelectedSupportingProvider("");
+
+            await fetchAppointments();
+
+            const data = await getAppointments({
+                search,
+                status,
+                startDate: fromDate,
+                endDate: toDate,
+                page,
+                limit: 10,
+            });
+
+            const updatedAppointment =
+                data.appointments?.find(
+                    (appointment) =>
+                        appointment._id ===
+                        selectedAppointment._id
+                );
+
+            if (updatedAppointment) {
+                setSelectedAppointment(updatedAppointment);
+            }
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
+    const handleRemoveSupportingProvider = async (
+        providerId
+    ) => {
+        try {
+            setError("");
+            setSuccess("");
+
+            await removeSupportingProvider(
+                selectedAppointment._id,
+                providerId
+            );
+
+            setSuccess(
+                "Supporting provider removed successfully."
+            );
+
+            await fetchAppointments();
+
+            const data = await getAppointments({
+                search,
+                status,
+                startDate: fromDate,
+                endDate: toDate,
+                page,
+                limit: 10,
+            });
+
+            const updatedAppointment =
+                data.appointments?.find(
+                    (appointment) =>
+                        appointment._id ===
+                        selectedAppointment._id
+                );
+
+            if (updatedAppointment) {
+                setSelectedAppointment(updatedAppointment);
+            }
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
+    const handleOpenDetails = async (appointment) => {
+        try {
+            setError("");
+            setSuccess("");
+            setSelectedAppointment(appointment);
+            setNotes([]);
+            setNoteText("");
+            setEditingNoteId(null);
+            setEditingNoteText("");
+            setSelectedSupportingProvider("");
+            setNotesLoading(true);
+
+            const data = await getVisitNotes(appointment._id);
+
+            setNotes(data.notes || []);
+        } catch (error) {
+            setError(error.message);
+        } finally {
+            setNotesLoading(false);
+        }
+    };
+
+    const handleCloseDetails = () => {
+        setSelectedAppointment(null);
+        setNotes([]);
+        setNoteText("");
+        setEditingNoteId(null);
+        setEditingNoteText("");
+        setSelectedSupportingProvider("");
+    };
+
+    const handleAddNote = async () => {
+        if (!noteText.trim()) {
+            setError("Please enter a visit note.");
+            return;
+        }
+
+        try {
+            setError("");
+            setSuccess("");
+
+            await addVisitNote(
+                selectedAppointment._id,
+                noteText.trim()
+            );
+
+            setNoteText("");
+
+            const data = await getVisitNotes(
+                selectedAppointment._id
+            );
+
+            setNotes(data.notes || []);
+
+            setSuccess("Visit note added successfully.");
+        } catch (error) {
+            setError(error.message);
+        }
+    };
+
+    const handleStartEditNote = (note) => {
+        setError("");
+        setSuccess("");
+
+        setEditingNoteId(note._id);
+        setEditingNoteText(note.text);
+    };
+
+    const handleCancelEditNote = () => {
+        setEditingNoteId(null);
+        setEditingNoteText("");
+    };
+
+    const handleUpdateNote = async (noteId) => {
+        if (!editingNoteText.trim()) {
+            setError("Note text cannot be empty.");
+            return;
+        }
+
+        try {
+            setError("");
+            setSuccess("");
+
+            await updateVisitNote(
+                noteId,
+                editingNoteText.trim()
+            );
+
+            const data = await getVisitNotes(
+                selectedAppointment._id
+            );
+
+            setNotes(data.notes || []);
+
+            setEditingNoteId(null);
+            setEditingNoteText("");
+
+            setSuccess("Visit note updated successfully.");
+        } catch (error) {
+            setError(error.message);
+        }
     };
 
     const formatDate = (date) => {
-        if (!date) {
-            return "-";
-        }
+        if (!date) return "-";
 
-        return new Date(date).toLocaleDateString(
-            "en-IN",
-            {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            }
-        );
+        return new Date(date).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
     };
 
     const formatTime = (date) => {
-        if (!date) {
-            return "-";
-        }
+        if (!date) return "-";
 
-        return new Date(date).toLocaleTimeString(
-            "en-IN",
-            {
-                hour: "2-digit",
-                minute: "2-digit",
-            }
-        );
+        return new Date(date).toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
     };
 
     const formatStatus = (value) => {
+        if (!value) return "-";
+
         return value
             .replaceAll("_", " ")
             .toLowerCase()
@@ -283,39 +463,48 @@ const Appointments = () => {
             );
     };
 
-    const getNextActions = (appointment) => {
-        switch (appointment.status) {
-            case "REQUESTED":
-                return [
-                    {
-                        status: "CONFIRMED",
-                        label: "Confirm",
-                    },
-                ];
+    const isCurrentUserNoteAuthor = (note) => {
+        return (
+            user?.role === "PROVIDER" &&
+            note.providerId?._id === user.userId
+        );
+    };
 
-            case "CONFIRMED":
-                return [
-                    {
-                        status: "CHECKED_IN",
-                        label: "Check In",
-                    },
-                    {
-                        status: "NO_SHOW",
-                        label: "No Show",
-                    },
-                ];
+    const getStatusActions = (appointment) => {
+        const actions = [];
 
-            case "CHECKED_IN":
-                return [
-                    {
-                        status: "COMPLETED",
-                        label: "Complete",
-                    },
-                ];
-
-            default:
-                return [];
+        if (appointment.status === "REQUESTED") {
+            actions.push({
+                label: "Confirm",
+                status: "CONFIRMED",
+            });
         }
+
+        if (appointment.status === "CONFIRMED") {
+            actions.push({
+                label: "Check In",
+                status: "CHECKED_IN",
+            });
+
+            if (
+                appointment.scheduledAt &&
+                new Date() >= new Date(appointment.scheduledAt)
+            ) {
+                actions.push({
+                    label: "No Show",
+                    status: "NO_SHOW",
+                });
+            }
+        }
+
+        if (appointment.status === "CHECKED_IN") {
+            actions.push({
+                label: "Complete",
+                status: "COMPLETED",
+            });
+        }
+
+        return actions;
     };
 
     return (
@@ -323,185 +512,16 @@ const Appointments = () => {
             <div className="page-header">
                 <div>
                     <h2>Appointments</h2>
-
                     <p>
-                        Manage clinic appointments
-                        {user?.role === "PROVIDER"
-                            ? " assigned to your care team."
-                            : "."}
+                        Manage and view clinic appointments
+                        {user?.role === "PROVIDER" &&
+                            " assigned to you"}.
                     </p>
                 </div>
             </div>
 
-            {/* Create Appointment */}
-
-            <div className="appointment-create-card">
-                <div className="card-header">
-                    <div>
-                        <h3>Create Appointment</h3>
-
-                        <span>
-                            Select a patient and an available
-                            appointment slot.
-                        </span>
-                    </div>
-                </div>
-
-                <form
-                    onSubmit={handleCreateAppointment}
-                    className="appointment-create-form"
-                >
-                    <div className="appointment-create-grid">
-                        <div className="filter-group">
-                            <label htmlFor="patientName">
-                                Patient Name
-                            </label>
-
-                            <input
-                                id="patientName"
-                                type="text"
-                                value={patientName}
-                                onChange={(event) =>
-                                    setPatientName(
-                                        event.target.value
-                                    )
-                                }
-                                placeholder="Enter patient name"
-                                required
-                            />
-                        </div>
-
-                        {user?.role === "FRONT_DESK" && (
-                            <div className="filter-group">
-                                <label htmlFor="appointmentProvider">
-                                    Provider
-                                </label>
-
-                                <select
-                                    id="appointmentProvider"
-                                    value={selectedProvider}
-                                    onChange={(event) => {
-                                        setSelectedProvider(
-                                            event.target.value
-                                        );
-                                        setSelectedSlot("");
-                                    }}
-                                    required
-                                >
-                                    <option value="">
-                                        Select provider
-                                    </option>
-
-                                    {providers.map(
-                                        (provider) => (
-                                            <option
-                                                key={
-                                                    provider._id
-                                                }
-                                                value={
-                                                    provider._id
-                                                }
-                                            >
-                                                {provider.name}
-                                            </option>
-                                        )
-                                    )}
-                                </select>
-                            </div>
-                        )}
-
-                        <div className="filter-group">
-                            <label htmlFor="appointmentDate">
-                                Date
-                            </label>
-
-                            <input
-                                id="appointmentDate"
-                                type="date"
-                                value={appointmentDate}
-                                onChange={(event) => {
-                                    setAppointmentDate(
-                                        event.target.value
-                                    );
-                                    setSelectedSlot("");
-                                }}
-                                required
-                            />
-                        </div>
-
-                        <div className="filter-group">
-                            <label htmlFor="appointmentSlot">
-                                Available Slot
-                            </label>
-
-                            <select
-                                id="appointmentSlot"
-                                value={selectedSlot}
-                                onChange={(event) =>
-                                    setSelectedSlot(
-                                        event.target.value
-                                    )
-                                }
-                                required
-                                disabled={
-                                    slotsLoading ||
-                                    !appointmentDate ||
-                                    (user?.role ===
-                                        "FRONT_DESK" &&
-                                        !selectedProvider)
-                                }
-                            >
-                                <option value="">
-                                    {slotsLoading
-                                        ? "Loading slots..."
-                                        : "Select a slot"}
-                                </option>
-
-                                {slots.map((slot) => (
-                                    <option
-                                        key={slot._id}
-                                        value={slot._id}
-                                    >
-                                        {slot.startTime} —{" "}
-                                        {slot.duration} min
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="create-appointment-action">
-                            <button
-                                type="submit"
-                                className="primary-button"
-                            >
-                                Request Appointment
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-
-            {error && (
-                <div className="error-message">
-                    {error}
-                </div>
-            )}
-
-            {success && (
-                <div className="success-message">
-                    {success}
-                </div>
-            )}
-
-            {/* Filters */}
-
             <div className="filters-card">
-                <form
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        setPage(1);
-                    }}
-                >
+                <form onSubmit={handleSearch}>
                     <div className="filter-row">
                         <div className="filter-group search-group">
                             <label htmlFor="search">
@@ -513,9 +533,7 @@ const Appointments = () => {
                                 type="text"
                                 value={search}
                                 onChange={(event) =>
-                                    setSearch(
-                                        event.target.value
-                                    )
+                                    setSearch(event.target.value)
                                 }
                                 placeholder="Search patient name"
                             />
@@ -604,9 +622,7 @@ const Appointments = () => {
                             <button
                                 type="button"
                                 className="secondary-button"
-                                onClick={
-                                    handleClearFilters
-                                }
+                                onClick={handleClearFilters}
                             >
                                 Clear
                             </button>
@@ -615,13 +631,22 @@ const Appointments = () => {
                 </form>
             </div>
 
-            {/* Appointment List */}
+            {success && (
+                <div className="success-message">
+                    {success}
+                </div>
+            )}
+
+            {error && (
+                <div className="error-message">
+                    {error}
+                </div>
+            )}
 
             <div className="appointments-card">
                 <div className="card-header">
                     <div>
                         <h3>Appointment List</h3>
-
                         <span>
                             {pagination.totalMatches} total
                             matches
@@ -636,6 +661,7 @@ const Appointments = () => {
                 )}
 
                 {!loading &&
+                    !error &&
                     appointments.length === 0 && (
                         <div className="state-message">
                             No appointments found.
@@ -653,113 +679,212 @@ const Appointments = () => {
                                             <th>Date</th>
                                             <th>Time</th>
                                             <th>
-                                                Scheduling
-                                                Provider
+                                                Scheduling Provider
                                             </th>
                                             <th>Status</th>
                                             <th>Actions</th>
+                                            {user?.role ===
+                                                "FRONT_DESK" && (
+                                                <th>
+                                                    Reassign
+                                                </th>
+                                            )}
                                         </tr>
                                     </thead>
 
                                     <tbody>
                                         {appointments.map(
-                                            (appointment) => {
-                                                const actions =
-                                                    getNextActions(
-                                                        appointment
-                                                    );
+                                            (appointment) => (
+                                                <tr
+                                                    key={
+                                                        appointment._id
+                                                    }
+                                                >
+                                                    <td>
+                                                        <strong>
+                                                            {
+                                                                appointment.patientName
+                                                            }
+                                                        </strong>
+                                                    </td>
 
-                                                return (
-                                                    <tr
-                                                        key={
-                                                            appointment._id
-                                                        }
-                                                    >
-                                                        <td>
-                                                            <strong>
-                                                                {
-                                                                    appointment.patientName
+                                                    <td>
+                                                        {formatDate(
+                                                            appointment.scheduledAt
+                                                        )}
+                                                    </td>
+
+                                                    <td>
+                                                        {formatTime(
+                                                            appointment.scheduledAt
+                                                        )}
+                                                    </td>
+
+                                                    <td>
+                                                        {editingProviderId ===
+                                                        appointment._id ? (
+                                                            <select
+                                                                className="reassign-select"
+                                                                value={
+                                                                    selectedProviderId
                                                                 }
-                                                            </strong>
-                                                        </td>
-
-                                                        <td>
-                                                            {formatDate(
-                                                                appointment.scheduledAt
-                                                            )}
-                                                        </td>
-
-                                                        <td>
-                                                            {formatTime(
-                                                                appointment.scheduledAt
-                                                            )}
-                                                        </td>
-
-                                                        <td>
-                                                            {appointment
-                                                                .schedulingProviderId
-                                                                ?.name ||
-                                                                "-"}
-                                                        </td>
-
-                                                        <td>
-                                                            <span
-                                                                className={`status-badge status-${appointment.status.toLowerCase()}`}
+                                                                onChange={(
+                                                                    event
+                                                                ) =>
+                                                                    setSelectedProviderId(
+                                                                        event
+                                                                            .target
+                                                                            .value
+                                                                    )
+                                                                }
                                                             >
-                                                                {formatStatus(
-                                                                    appointment.status
-                                                                )}
-                                                            </span>
-                                                        </td>
+                                                                <option value="">
+                                                                    Select provider
+                                                                </option>
 
-                                                        <td>
-                                                            <div className="appointment-actions">
-                                                                {actions.map(
+                                                                {providers.map(
                                                                     (
-                                                                        action
+                                                                        provider
                                                                     ) => (
-                                                                        <button
+                                                                        <option
                                                                             key={
-                                                                                action.status
+                                                                                provider._id
                                                                             }
-                                                                            type="button"
-                                                                            onClick={() =>
-                                                                                handleStatusChange(
-                                                                                    appointment._id,
-                                                                                    action.status
-                                                                                )
+                                                                            value={
+                                                                                provider._id
                                                                             }
                                                                         >
                                                                             {
-                                                                                action.label
+                                                                                provider.name
                                                                             }
-                                                                        </button>
+                                                                        </option>
                                                                     )
                                                                 )}
+                                                            </select>
+                                                        ) : (
+                                                            appointment
+                                                                .schedulingProviderId
+                                                                ?.name ||
+                                                            "-"
+                                                        )}
+                                                    </td>
 
-                                                                {[
-                                                                    "REQUESTED",
-                                                                    "CONFIRMED",
-                                                                ].includes(
-                                                                    appointment.status
-                                                                ) && (
+                                                    <td>
+                                                        <span
+                                                            className={`status-badge status-${appointment.status.toLowerCase()}`}
+                                                        >
+                                                            {formatStatus(
+                                                                appointment.status
+                                                            )}
+                                                        </span>
+                                                    </td>
+
+                                                    <td>
+                                                        <div className="appointment-actions">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    handleOpenDetails(
+                                                                        appointment
+                                                                    )
+                                                                }
+                                                            >
+                                                                Details
+                                                            </button>
+
+                                                            {getStatusActions(
+                                                                appointment
+                                                            ).map(
+                                                                (
+                                                                    action
+                                                                ) => (
                                                                     <button
                                                                         type="button"
-                                                                        className="danger-button"
+                                                                        key={
+                                                                            action.status
+                                                                        }
                                                                         onClick={() =>
-                                                                            handleCancel(
+                                                                            handleStatusChange(
+                                                                                appointment._id,
+                                                                                action.status
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            action.label
+                                                                        }
+                                                                    </button>
+                                                                )
+                                                            )}
+
+                                                            {![
+                                                                "CHECKED_IN",
+                                                                "COMPLETED",
+                                                                "NO_SHOW",
+                                                                "CANCELLED",
+                                                            ].includes(
+                                                                appointment.status
+                                                            ) && (
+                                                                <button
+                                                                    type="button"
+                                                                    className="danger-button"
+                                                                    onClick={() =>
+                                                                        handleOpenCancel(
+                                                                            appointment._id
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </td>
+
+                                                    {user?.role ===
+                                                        "FRONT_DESK" && (
+                                                        <td>
+                                                            {editingProviderId ===
+                                                            appointment._id ? (
+                                                                <div className="action-buttons">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="small-button"
+                                                                        onClick={() =>
+                                                                            handleReassign(
                                                                                 appointment._id
                                                                             )
                                                                         }
                                                                     >
+                                                                        Save
+                                                                    </button>
+
+                                                                    <button
+                                                                        type="button"
+                                                                        className="small-button secondary-button"
+                                                                        onClick={
+                                                                            handleCancelReassign
+                                                                        }
+                                                                    >
                                                                         Cancel
                                                                     </button>
-                                                                )}
-                                                            </div>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    className="small-button"
+                                                                    onClick={() =>
+                                                                        handleStartReassign(
+                                                                            appointment
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Reassign
+                                                                </button>
+                                                            )}
                                                         </td>
-                                                    </tr>
-                                                );
-                                            }
+                                                    )}
+                                                </tr>
+                                            )
                                         )}
                                     </tbody>
                                 </table>
@@ -803,6 +928,379 @@ const Appointments = () => {
                         </>
                     )}
             </div>
+
+            {selectedAppointment && (
+                <div className="details-panel">
+                    <div className="details-header">
+                        <div>
+                            <h3>
+                                Appointment Details
+                            </h3>
+                            <p>
+                                {
+                                    selectedAppointment.patientName
+                                }
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="small-button secondary-button"
+                            onClick={handleCloseDetails}
+                        >
+                            Close
+                        </button>
+                    </div>
+
+                    <div className="appointment-details-grid">
+                        <div>
+                            <strong>Date</strong>
+                            <span>
+                                {formatDate(
+                                    selectedAppointment.scheduledAt
+                                )}
+                            </span>
+                        </div>
+
+                        <div>
+                            <strong>Time</strong>
+                            <span>
+                                {formatTime(
+                                    selectedAppointment.scheduledAt
+                                )}
+                            </span>
+                        </div>
+
+                        <div>
+                            <strong>Status</strong>
+                            <span>
+                                {formatStatus(
+                                    selectedAppointment.status
+                                )}
+                            </span>
+                        </div>
+
+                        <div>
+                            <strong>Scheduling Provider</strong>
+                            <span>
+                                {
+                                    selectedAppointment
+                                        .schedulingProviderId?.name
+                                }
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="care-team-section">
+                        <h4>Care Team</h4>
+
+                        <p>
+                            <strong>
+                                Scheduling Provider:
+                            </strong>{" "}
+                            {selectedAppointment
+                                .schedulingProviderId?.name ||
+                                "-"}
+                        </p>
+
+                        <p>
+                            <strong>
+                                Supporting Providers:
+                            </strong>
+                        </p>
+
+                        {selectedAppointment
+                            .supportingProviderIds?.length >
+                        0 ? (
+                            <div className="supporting-provider-list">
+                                {selectedAppointment.supportingProviderIds.map(
+                                    (provider) => (
+                                        <div
+                                            className="supporting-provider-item"
+                                            key={provider._id}
+                                        >
+                                            <span>
+                                                {
+                                                    provider.name
+                                                }
+                                            </span>
+
+                                            {user?.role ===
+                                                "FRONT_DESK" && (
+                                                <button
+                                                    type="button"
+                                                    className="small-button secondary-button"
+                                                    onClick={() =>
+                                                        handleRemoveSupportingProvider(
+                                                            provider._id
+                                                        )
+                                                    }
+                                                >
+                                                    Remove
+                                                </button>
+                                            )}
+                                        </div>
+                                    )
+                                )}
+                            </div>
+                        ) : (
+                            <p>None</p>
+                        )}
+
+                        {user?.role === "FRONT_DESK" && (
+                            <div className="supporting-provider-form">
+                                <select
+                                    value={
+                                        selectedSupportingProvider
+                                    }
+                                    onChange={(event) =>
+                                        setSelectedSupportingProvider(
+                                            event.target.value
+                                        )
+                                    }
+                                >
+                                    <option value="">
+                                        Select supporting provider
+                                    </option>
+
+                                    {providers
+                                        .filter(
+                                            (provider) =>
+                                                provider._id !==
+                                                selectedAppointment
+                                                    .schedulingProviderId
+                                                    ?._id &&
+                                                !selectedAppointment.supportingProviderIds?.some(
+                                                    (supporting) =>
+                                                        supporting._id ===
+                                                        provider._id
+                                                )
+                                        )
+                                        .map((provider) => (
+                                            <option
+                                                key={
+                                                    provider._id
+                                                }
+                                                value={
+                                                    provider._id
+                                                }
+                                            >
+                                                {provider.name}
+                                            </option>
+                                        ))}
+                                </select>
+
+                                <button
+                                    type="button"
+                                    className="small-button"
+                                    onClick={
+                                        handleAddSupportingProvider
+                                    }
+                                >
+                                    Add Supporting Provider
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="visit-notes-section">
+                        <div className="notes-header">
+                            <div>
+                                <h4>Visit Notes</h4>
+                                <p>
+                                    Notes are shown in
+                                    chronological order.
+                                </p>
+                            </div>
+                        </div>
+
+                        {notesLoading && (
+                            <div className="state-message">
+                                Loading visit notes...
+                            </div>
+                        )}
+
+                        {!notesLoading &&
+                            notes.length === 0 && (
+                                <div className="state-message">
+                                    No visit notes yet.
+                                </div>
+                            )}
+
+                        {!notesLoading &&
+                            notes.length > 0 && (
+                                <div className="notes-list">
+                                    {notes.map((note) => (
+                                        <div
+                                            className="note-card"
+                                            key={note._id}
+                                        >
+                                            <div className="note-meta">
+                                                <strong>
+                                                    {note
+                                                        .providerId
+                                                        ?.name ||
+                                                        "Provider"}
+                                                </strong>
+
+                                                <span>
+                                                    {new Date(
+                                                        note.createdAt
+                                                    ).toLocaleString(
+                                                        "en-IN"
+                                                    )}
+                                                </span>
+                                            </div>
+
+                                            {editingNoteId ===
+                                            note._id ? (
+                                                <div className="note-edit">
+                                                    <textarea
+                                                        value={
+                                                            editingNoteText
+                                                        }
+                                                        onChange={(
+                                                            event
+                                                        ) =>
+                                                            setEditingNoteText(
+                                                                event
+                                                                    .target
+                                                                    .value
+                                                            )
+                                                        }
+                                                        rows="4"
+                                                    />
+
+                                                    <div className="action-buttons">
+                                                        <button
+                                                            type="button"
+                                                            className="small-button"
+                                                            onClick={() =>
+                                                                handleUpdateNote(
+                                                                    note._id
+                                                                )
+                                                            }
+                                                        >
+                                                            Save
+                                                        </button>
+
+                                                        <button
+                                                            type="button"
+                                                            className="small-button secondary-button"
+                                                            onClick={
+                                                                handleCancelEditNote
+                                                            }
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <p className="note-text">
+                                                        {note.text}
+                                                    </p>
+
+                                                    {isCurrentUserNoteAuthor(
+                                                        note
+                                                    ) && (
+                                                        <button
+                                                            type="button"
+                                                            className="small-button"
+                                                            onClick={() =>
+                                                                handleStartEditNote(
+                                                                    note
+                                                                )
+                                                            }
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                        {user?.role === "PROVIDER" && (
+                            <div className="add-note-form">
+                                <label htmlFor="noteText">
+                                    Add Visit Note
+                                </label>
+
+                                <textarea
+                                    id="noteText"
+                                    value={noteText}
+                                    onChange={(event) =>
+                                        setNoteText(
+                                            event.target.value
+                                        )
+                                    }
+                                    placeholder="Enter provider observations..."
+                                    rows="4"
+                                />
+
+                                <button
+                                    type="button"
+                                    onClick={handleAddNote}
+                                >
+                                    Add Note
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {cancelAppointmentId && (
+                <div className="cancel-modal-overlay">
+                    <div className="cancel-modal">
+                        <h3>Cancel Appointment</h3>
+
+                        <p>
+                            Please provide a reason for
+                            cancelling this appointment.
+                        </p>
+
+                        <label htmlFor="cancelReason">
+                            Cancellation Reason
+                        </label>
+
+                        <textarea
+                            id="cancelReason"
+                            value={cancelReason}
+                            onChange={(event) =>
+                                setCancelReason(
+                                    event.target.value
+                                )
+                            }
+                            placeholder="Enter cancellation reason..."
+                            rows="4"
+                        />
+
+                        <div className="action-buttons">
+                            <button
+                                type="button"
+                                className="small-button danger-button"
+                                onClick={
+                                    handleCancelAppointment
+                                }
+                            >
+                                Confirm Cancellation
+                            </button>
+
+                            <button
+                                type="button"
+                                className="small-button secondary-button"
+                                onClick={handleCloseCancel}
+                            >
+                                Keep Appointment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

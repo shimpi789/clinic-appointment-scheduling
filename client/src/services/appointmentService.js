@@ -62,3 +62,27 @@ export const removeSupportingProvider = async (
         `/appointments/${appointmentId}/supporting-providers/${providerId}`
     );
 };
+
+export const reassignSchedulingProvider = async (
+    appointmentId,
+    providerId
+) => {
+    return api.patch(
+        `/appointments/${appointmentId}/scheduling-provider`,
+        {
+            providerId,
+        }
+    );
+};
+
+export const getVisitNotes = async (appointmentId) => {
+    return api.get(`/visit-notes/${appointmentId}`);
+};
+
+export const addVisitNote = async (appointmentId, text) => {
+    return api.post(`/visit-notes/${appointmentId}`, { text });
+};
+
+export const updateVisitNote = async (noteId, text) => {
+    return api.put(`/visit-notes/note/${noteId}`, { text });
+};
