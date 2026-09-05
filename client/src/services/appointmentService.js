@@ -86,3 +86,8 @@ export const addVisitNote = async (appointmentId, text) => {
 export const updateVisitNote = async (noteId, text) => {
     return api.put(`/visit-notes/note/${noteId}`, { text });
 };
+
+
+export const getAppointmentHistory = async (appointmentId) => {
+    return api.get(`/history/${appointmentId}`);
+};

@@ -3,6 +3,7 @@ import {
     getAppointments,
     reassignSchedulingProvider,
     getVisitNotes,
+    getAppointmentHistory,
     addVisitNote,
     updateVisitNote,
     updateAppointmentStatus,
@@ -43,8 +44,13 @@ const Appointments = () => {
     const [selectedAppointment, setSelectedAppointment] =
         useState(null);
 
-    const [notes, setNotes] = useState([]);
-    const [notesLoading, setNotesLoading] = useState(false);
+        const [notes, setNotes] = useState([]);
+        const [notesLoading, setNotesLoading] = useState(false);
+        
+        const [history, setHistory] = useState([]);
+        const [historyLoading, setHistoryLoading] = useState(false);
+
+
 
     const [noteText, setNoteText] = useState("");
     const [editingNoteId, setEditingNoteId] = useState(null);
@@ -335,26 +341,36 @@ const Appointments = () => {
             setError("");
             setSuccess("");
             setSelectedAppointment(appointment);
+
             setNotes([]);
+            setHistory([]);
             setNoteText("");
             setEditingNoteId(null);
             setEditingNoteText("");
             setSelectedSupportingProvider("");
+
             setNotesLoading(true);
+            setHistoryLoading(true);
 
-            const data = await getVisitNotes(appointment._id);
+            const [notesData, historyData] = await Promise.all([
+                getVisitNotes(appointment._id),
+                getAppointmentHistory(appointment._id),
+            ]);
 
-            setNotes(data.notes || []);
+            setNotes(notesData.notes || []);
+            setHistory(historyData.history || []);
         } catch (error) {
             setError(error.message);
         } finally {
             setNotesLoading(false);
+            setHistoryLoading(false);
         }
     };
 
     const handleCloseDetails = () => {
         setSelectedAppointment(null);
         setNotes([]);
+        setHistory([]);
         setNoteText("");
         setEditingNoteId(null);
         setEditingNoteText("");
@@ -378,11 +394,13 @@ const Appointments = () => {
 
             setNoteText("");
 
-            const data = await getVisitNotes(
-                selectedAppointment._id
-            );
+            const [notesData, historyData] = await Promise.all([
+                getVisitNotes(selectedAppointment._id),
+                getAppointmentHistory(selectedAppointment._id),
+            ]);
 
-            setNotes(data.notes || []);
+            setNotes(notesData.notes || []);
+            setHistory(historyData.history || []);
 
             setSuccess("Visit note added successfully.");
         } catch (error) {
@@ -468,6 +486,41 @@ const Appointments = () => {
             user?.role === "PROVIDER" &&
             note.providerId?._id === user.userId
         );
+    };
+
+    const getHistoryDescription = (item) => {
+        switch (item.type) {
+            case "STATUS_CHANGE":
+                return `Status changed from ${formatStatus(
+                    item.oldStatus
+                )} to ${formatStatus(item.newStatus)}.`;
+
+            case "SUPPORTING_PROVIDER_ADDED":
+                return `Supporting provider ${
+                    item.providerId?.name || "provider"
+                } was added.`;
+
+            case "SUPPORTING_PROVIDER_REMOVED":
+                return `Supporting provider ${
+                    item.providerId?.name || "provider"
+                } was removed.`;
+
+            case "SCHEDULING_PROVIDER_REASSIGNED":
+                return `Scheduling provider changed to ${
+                    item.providerId?.name || "provider"
+                }.`;
+
+            case "CANCELLATION":
+                return `Appointment cancelled${
+                    item.reason ? `: ${item.reason}` : "."
+                }`;
+
+            case "VISIT_NOTE_ADDED":
+                return "A visit note was added.";
+
+            default:
+                return "Appointment history updated.";
+        }
     };
 
     const getStatusActions = (appointment) => {
@@ -1099,6 +1152,64 @@ const Appointments = () => {
                                 >
                                     Add Supporting Provider
                                 </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="history-section">
+                        <div className="notes-header">
+                            <div>
+                                <h4>Appointment Timeline</h4>
+                                <p>
+                                    All appointment changes are shown in
+                                    chronological order.
+                                </p>
+                            </div>
+                        </div>
+
+                        {historyLoading && (
+                            <div className="state-message">
+                                Loading appointment history...
+                            </div>
+                        )}
+
+                        {!historyLoading && history.length === 0 && (
+                            <div className="state-message">
+                                No history recorded yet.
+                            </div>
+                        )}
+
+                        {!historyLoading && history.length > 0 && (
+                            <div className="history-list">
+                                {history.map((item) => (
+                                    <div
+                                        className="history-card"
+                                        key={item._id}
+                                    >
+                                        <div className="history-meta">
+                                            <strong>
+                                                {getHistoryDescription(item)}
+                                            </strong>
+
+                                            <span>
+                                                {new Date(
+                                                    item.createdAt
+                                                ).toLocaleString("en-IN")}
+                                            </span>
+                                        </div>
+
+                                        <p className="history-performed-by">
+                                            By{" "}
+                                            {item.performedBy?.name ||
+                                                "Unknown user"}
+                                            {item.performedBy?.role
+                                                ? ` (${formatStatus(
+                                                      item.performedBy.role
+                                                  )})`
+                                                : ""}
+                                        </p>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
