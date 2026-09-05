@@ -14,6 +14,7 @@ const appointmentHistorySchema = new mongoose.Schema(
                 "STATUS_CHANGE",
                 "SUPPORTING_PROVIDER_ADDED",
                 "SUPPORTING_PROVIDER_REMOVED",
+                "SCHEDULING_PROVIDER_REASSIGNED",
                 "CANCELLATION",
                 "VISIT_NOTE_ADDED",
             ],
@@ -41,7 +42,6 @@ const appointmentHistorySchema = new mongoose.Schema(
 
         reason: {
             type: String,
-            trim: true,
         },
     },
     {

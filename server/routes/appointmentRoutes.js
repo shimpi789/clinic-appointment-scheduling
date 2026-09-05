@@ -9,6 +9,7 @@ import {
     cancelAppointment,
     addSupportingProvider,
     removeSupportingProvider,
+    reassignSchedulingProvider,
 } from "../controllers/appointmentController.js";
 
 const router = express.Router();
@@ -53,6 +54,12 @@ router.delete(
     authMiddleware,
     roleMiddleware("FRONT_DESK"),
     removeSupportingProvider
+);
+router.patch(
+    "/:id/scheduling-provider",
+    authMiddleware,
+    roleMiddleware("FRONT_DESK"),
+    reassignSchedulingProvider
 );
 
 export default router;

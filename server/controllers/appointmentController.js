@@ -571,3 +571,90 @@ export const removeSupportingProvider = async (req, res) => {
         });
     }
 };
+
+// Reassign Scheduling Provider
+export const reassignSchedulingProvider = async (
+    req,
+    res
+) => {
+    try {
+        const { id } = req.params;
+        const { providerId } = req.body;
+
+        // Server-side role enforcement
+        if (req.user.role !== "FRONT_DESK") {
+            return res.status(403).json({
+                message:
+                    "Only front desk can reassign the scheduling provider",
+            });
+        }
+
+        if (!providerId) {
+            return res.status(400).json({
+                message: "Provider ID is required",
+            });
+        }
+
+        const appointment =
+            await Appointment.findById(id);
+
+        if (!appointment) {
+            return res.status(404).json({
+                message: "Appointment not found",
+            });
+        }
+
+        const provider = await User.findOne({
+            _id: providerId,
+            role: "PROVIDER",
+        });
+
+        if (!provider) {
+            return res.status(404).json({
+                message: "Provider not found",
+            });
+        }
+
+        if (
+            appointment.schedulingProviderId.toString() ===
+            providerId.toString()
+        ) {
+            return res.status(400).json({
+                message:
+                    "Provider is already the scheduling provider",
+            });
+        }
+
+        const oldProviderId =
+            appointment.schedulingProviderId;
+
+        appointment.schedulingProviderId = providerId;
+
+        await appointment.save();
+
+        // Immutable history record
+        await createHistory({
+            appointmentId: appointment._id,
+            type: "SCHEDULING_PROVIDER_REASSIGNED",
+            providerId: providerId,
+            performedBy: req.user.userId,
+            reason: `Scheduling provider changed from ${oldProviderId} to ${providerId}`,
+        });
+
+        return res.status(200).json({
+            message:
+                "Scheduling provider reassigned successfully",
+            appointment,
+        });
+    } catch (error) {
+        console.error(
+            "Reassign scheduling provider error:",
+            error.message
+        );
+
+        return res.status(500).json({
+            message:
+                "Server error while reassigning scheduling provider",
+        });
+    }
+};
