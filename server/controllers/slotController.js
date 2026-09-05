@@ -52,6 +52,7 @@ export const createSlot = async (req, res) => {
             });
         }
 
+        // Provider can only create slots for themselves
         if (
             req.user.role === "PROVIDER" &&
             req.user.userId.toString() !== providerId.toString()
@@ -168,7 +169,7 @@ export const getMySlots = async (req, res) => {
     }
 };
 
-
+// Get Slots
 export const getSlots = async (req, res) => {
     try {
         const { providerId, date, archived } = req.query;
@@ -222,13 +223,18 @@ export const getSlots = async (req, res) => {
             slots,
         });
     } catch (error) {
-        console.error("Get slots error:", error.message);
+        console.error(
+            "Get slots error:",
+            error.message
+        );
 
         return res.status(500).json({
-            message: "Server error while fetching slots",
+            message:
+                "Server error while fetching slots",
         });
     }
 };
+
 // Update Slot
 export const updateSlot = async (req, res) => {
     try {
@@ -250,6 +256,7 @@ export const updateSlot = async (req, res) => {
             });
         }
 
+        // Provider can only edit their own slots
         if (
             req.user.role === "PROVIDER" &&
             slot.providerId.toString() !==
@@ -258,6 +265,19 @@ export const updateSlot = async (req, res) => {
             return res.status(403).json({
                 message:
                     "You can only edit your own slots",
+            });
+        }
+
+        // A booked slot becomes an appointment
+        // and cannot be edited.
+        const existingAppointment = await Appointment.findOne({
+            slotId: slot._id,
+        });
+
+        if (existingAppointment) {
+            return res.status(400).json({
+                message:
+                    "Booked slots cannot be edited",
             });
         }
 
@@ -352,6 +372,7 @@ export const archiveSlot = async (req, res) => {
             });
         }
 
+        // Provider can only archive their own slots
         if (
             req.user.role === "PROVIDER" &&
             slot.providerId.toString() !==
@@ -360,6 +381,19 @@ export const archiveSlot = async (req, res) => {
             return res.status(403).json({
                 message:
                     "You can only archive your own slots",
+            });
+        }
+
+        // A booked slot has become an appointment
+        // and should not be archived.
+        const existingAppointment = await Appointment.findOne({
+            slotId: slot._id,
+        });
+
+        if (existingAppointment) {
+            return res.status(400).json({
+                message:
+                    "Booked slots cannot be archived",
             });
         }
 
@@ -399,6 +433,7 @@ export const restoreSlot = async (req, res) => {
             });
         }
 
+        // Provider can only restore their own slots
         if (
             req.user.role === "PROVIDER" &&
             slot.providerId.toString() !==
@@ -619,7 +654,8 @@ export const bulkCreateSlots = async (req, res) => {
                         date: dateString,
                         startTime: block.startTime,
                         duration: Number(block.duration),
-                        reason: "Collision with existing or generated slot",
+                        reason:
+                            "Collision with existing or generated slot",
                     });
 
                     continue;

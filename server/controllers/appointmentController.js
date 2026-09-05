@@ -24,6 +24,14 @@ export const createAppointment = async (req, res) => {
                 message: "Available slot not found",
             });
         }
+        if (
+            req.user.role === "PROVIDER" &&
+            slot.providerId.toString() !== req.user.userId.toString()
+        ) {
+            return res.status(403).json({
+                message: "You can only book appointments for your own slots",
+            });
+        }
 
         const provider = await User.findOne({
             _id: slot.providerId,
@@ -573,15 +581,11 @@ export const removeSupportingProvider = async (req, res) => {
 };
 
 // Reassign Scheduling Provider
-export const reassignSchedulingProvider = async (
-    req,
-    res
-) => {
+export const reassignSchedulingProvider = async (req, res) => {
     try {
         const { id } = req.params;
         const { providerId } = req.body;
 
-        // Server-side role enforcement
         if (req.user.role !== "FRONT_DESK") {
             return res.status(403).json({
                 message:
@@ -595,12 +599,23 @@ export const reassignSchedulingProvider = async (
             });
         }
 
-        const appointment =
-            await Appointment.findById(id);
+        const appointment = await Appointment.findById(id);
 
         if (!appointment) {
             return res.status(404).json({
                 message: "Appointment not found",
+            });
+        }
+
+        // Terminal appointments cannot be reassigned.
+        if (
+            appointment.status === "COMPLETED" ||
+            appointment.status === "NO_SHOW" ||
+            appointment.status === "CANCELLED"
+        ) {
+            return res.status(400).json({
+                message:
+                    "Scheduling provider cannot be reassigned for a completed, no-show, or cancelled appointment",
             });
         }
 
@@ -625,14 +640,12 @@ export const reassignSchedulingProvider = async (
             });
         }
 
-        const oldProviderId =
-            appointment.schedulingProviderId;
+        const oldProviderId = appointment.schedulingProviderId;
 
         appointment.schedulingProviderId = providerId;
 
         await appointment.save();
 
-        // Immutable history record
         await createHistory({
             appointmentId: appointment._id,
             type: "SCHEDULING_PROVIDER_REASSIGNED",

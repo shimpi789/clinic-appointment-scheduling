@@ -29,6 +29,9 @@ const Appointments = () => {
     const [status, setStatus] = useState("");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
+    const [providerId, setProviderId] = useState("");
+    const [sortBy, setSortBy] = useState("date");
+    const [sortOrder, setSortOrder] = useState("asc");
 
     const [page, setPage] = useState(1);
 
@@ -71,8 +74,11 @@ const Appointments = () => {
             const data = await getAppointments({
                 search,
                 status,
+                providerId,
                 startDate: fromDate,
                 endDate: toDate,
+                sortBy,
+                sortOrder,
                 page,
                 limit: 10,
             });
@@ -90,7 +96,16 @@ const Appointments = () => {
         } finally {
             setLoading(false);
         }
-    }, [search, status, fromDate, toDate, page]);
+    }, [
+        search,
+        status,
+        providerId,
+        fromDate,
+        toDate,
+        sortBy,
+        sortOrder,
+        page,
+    ]);
 
     useEffect(() => {
         // Loading appointments from the API is intentional here.
@@ -123,8 +138,11 @@ const Appointments = () => {
     const handleClearFilters = () => {
         setSearch("");
         setStatus("");
+        setProviderId("");
         setFromDate("");
         setToDate("");
+        setSortBy("date");
+        setSortOrder("asc");
         setPage(1);
     };
 
@@ -273,8 +291,11 @@ const Appointments = () => {
             const data = await getAppointments({
                 search,
                 status,
+                providerId,
                 startDate: fromDate,
                 endDate: toDate,
+                sortBy,
+                sortOrder,
                 page,
                 limit: 10,
             });
@@ -315,8 +336,11 @@ const Appointments = () => {
             const data = await getAppointments({
                 search,
                 status,
+                providerId,
                 startDate: fromDate,
                 endDate: toDate,
+                sortBy,
+                sortOrder,
                 page,
                 limit: 10,
             });
@@ -631,6 +655,38 @@ const Appointments = () => {
                             </select>
                         </div>
 
+                        {user?.role === "FRONT_DESK" && (
+                            <div className="filter-group">
+                                <label htmlFor="providerId">
+                                    Provider
+                                </label>
+
+                                <select
+                                    id="providerId"
+                                    value={providerId}
+                                    onChange={(event) => {
+                                        setProviderId(
+                                            event.target.value
+                                        );
+                                        setPage(1);
+                                    }}
+                                >
+                                    <option value="">
+                                        All providers
+                                    </option>
+
+                                    {providers.map((provider) => (
+                                        <option
+                                            key={provider._id}
+                                            value={provider._id}
+                                        >
+                                            {provider.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
                         <div className="filter-group">
                             <label htmlFor="fromDate">
                                 From
@@ -665,6 +721,53 @@ const Appointments = () => {
                                     setPage(1);
                                 }}
                             />
+                        </div>
+
+                        <div className="filter-group">
+                            <label htmlFor="sortBy">
+                                Sort By
+                            </label>
+
+                            <select
+                                id="sortBy"
+                                value={sortBy}
+                                onChange={(event) => {
+                                    setSortBy(event.target.value);
+                                    setPage(1);
+                                }}
+                            >
+                                <option value="date">
+                                    Date & Time
+                                </option>
+                                <option value="status">
+                                    Status
+                                </option>
+                                <option value="provider">
+                                    Provider
+                                </option>
+                            </select>
+                        </div>
+
+                        <div className="filter-group">
+                            <label htmlFor="sortOrder">
+                                Order
+                            </label>
+
+                            <select
+                                id="sortOrder"
+                                value={sortOrder}
+                                onChange={(event) => {
+                                    setSortOrder(event.target.value);
+                                    setPage(1);
+                                }}
+                            >
+                                <option value="asc">
+                                    Ascending
+                                </option>
+                                <option value="desc">
+                                    Descending
+                                </option>
+                            </select>
                         </div>
 
                         <div className="filter-actions">
