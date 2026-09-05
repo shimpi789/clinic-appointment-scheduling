@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/useAuth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import Appointments from "./pages/Appointments";
 import "./App.css";
 
 const App = () => {
@@ -30,6 +31,17 @@ const App = () => {
                     )
                 }
             />
+
+<Route
+    path="/appointments"
+    element={
+        isAuthenticated ? (
+            <Appointments />
+        ) : (
+            <Navigate to="/login" replace />
+        )
+    }
+/>
         </Routes>
     );
 };
